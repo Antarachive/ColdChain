@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cold Storage Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:light;--bg:#e9dac5;--pn:#feeed5;--ink:#100a02;--mut:#3f3428;--acc:#ff702e;--bad:#c2300b;--ok:#2f7d32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 'Space Mono',ui-monospace,Menlo,monospace}
+.app{margin:18px;border:1px solid var(--ink);background:var(--pn);display:grid;grid-template-columns:82px 1fr;min-height:calc(100vh - 36px)}
+.app.login{grid-template-columns:1fr}
+.nav{border-right:1px solid var(--ink);display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:4px}
+.nav button{background:none;border:0;color:var(--ink);font:inherit;font-size:10px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 2px;width:100%;cursor:pointer}
+.nav button.on{color:var(--acc);font-weight:700}
+.nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav small{font-size:9px;text-align:center;color:var(--mut);line-height:1.3;word-break:break-word;padding:0 4px;margin-bottom:6px}
+.logo{width:26px;height:26px;margin-bottom:14px}
+.sp{flex:1}
+main{padding:18px;min-width:0}
+.frame{border:1px solid var(--ink);display:grid;grid-template-columns:1fr 1fr}
+.frame.one{grid-template-columns:1fr}
+.frame>section{padding:22px;min-width:0}
+.frame>section+section{border-left:1px solid var(--ink)}
+.ill{text-align:center}
+h1{font-size:20px;text-align:center;margin:0 0 6px;font-weight:700}
+h2{font-size:13px;margin:16px 0 8px}
+.sub{text-align:center;color:var(--mut);font-size:11px;margin:0 0 18px}
+label{display:block;border:1px solid var(--ink);padding:6px 10px;margin-bottom:10px;font-size:11px;color:var(--mut)}
+label input,label select{display:block;width:100%;background:transparent;border:0;outline:0;color:var(--ink);font:inherit;font-size:13px;padding:3px 0}
+select option{background:var(--pn);color:var(--ink)}
+.btn{width:100%;border:0;background:var(--acc);color:var(--ink);font:inherit;font-weight:700;padding:14px;cursor:pointer;margin:4px 0 18px}
+.btn:hover{filter:brightness(1.07)}
+.btn:disabled{opacity:.6;cursor:wait}
+.lnk{display:block;color:var(--ink);font-size:11px;text-decoration:underline;text-align:right;margin:-4px 0 14px}
+.sc{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{border-bottom:1px solid var(--ink);padding:6px 5px;text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:400}
+.msg{border:1px solid var(--ink);padding:10px 14px;margin:0 0 14px;font-size:12px}
+.msg.e{border-color:var(--bad);color:var(--bad)}
+.msg.o{border-color:var(--ok);color:var(--ok)}
+.bar{height:8px;border:1px solid var(--ink);margin:3px 0 10px}
+.bar i{display:block;height:100%;background:var(--acc)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.tabs button{font:inherit;font-size:11px;background:transparent;color:var(--ink);border:1px solid var(--ink);padding:6px 10px;cursor:pointer}
+.tabs button.on{background:var(--acc);border-color:var(--acc)}
+.bad{color:var(--bad);font-weight:700}
+.kp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.kp div{border:1px solid var(--ink);padding:10px}
+.kp b{display:block;font-size:22px}
+.lg{font-size:11px;color:var(--mut);border-top:1px solid var(--ink);padding-top:8px;margin-top:6px}
+@media(max-width:820px){.app{grid-template-columns:1fr;margin:8px}.nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--ink);padding:6px}.nav button{width:auto;min-width:62px}.sp,.logo,.nav small{display:none}.frame{grid-template-columns:1fr}.frame>section+section{border-left:0;border-top:1px solid var(--ink)}main{padding:10px}}
+</style></head>
+<body><div class="app login" id="app"></div>
+<script>
+// ---- state (filled from the API) ---------------------------------------------------------
+const cu=[],cm=[],ch=[],us=[],lt=[],al=[],tl=[],ins=[],iv=[],LOG=[];
+const st={v:'home',user:null,tab:'occ',rep:{},dev:[],msg:null,ld:0};
+const T=new Date().toISOString().slice(0,10),D=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const f=(a,i)=>a.find(x=>x.id==i),sum=a=>a.reduce((s,x)=>s+x,0),fmt=n=>(+n).toLocaleString(undefined,{maximumFractionDigits:2}),
+esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+nm=(a,i)=>esc((f(a,i)||{}).n||'—'),tot=v=>v.qty*v.rate;
+const R={Admin:'home lots alloc env bill rel rep',WarehouseOperator:'home lots alloc env',BillingClerk:'home bill rep',Customer:'rep'};
+const NV=[['home','Home'],['lots','Intake'],['alloc','Allocate'],['env','Monitor'],['bill','Billing'],['rel','Release'],['rep','Reports']];
+const I={home:'M3 11l9-8 9 8M5 10v10h14V10',lots:'M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10',alloc:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',env:'M10 14V5a2 2 0 014 0v9a4 4 0 11-4 0z',bill:'M6 3h9l4 4v14H6zM9 12h7M9 16h7',rel:'M12 20V9M7 14l5-5 5 5M5 4h14',rep:'M5 20V10M12 20V4M19 20v-7'};
+const K={lot:'lots',al:'allocations',t:'temperature',i:'inspections',inv:'invoices',pay:'payments',rel:'releases'};
+
+// ---- API ---------------------------------------------------------------------------------
+async function api(p,b){
+  const r=await fetch('/api/'+p,{method:b?'POST':'GET',headers:b?{'Content-Type':'application/json'}:{},body:b?JSON.stringify(b):undefined});
+  const j=await r.json().catch(()=>({}));
+  if(r.status==401&&p!='login'&&p!='me'){st.user=null;draw()}
+  if(!r.ok)throw Error(j.error||r.statusText);
+  return j}
+async function refresh(){
+  const d=await api('data');
+  [['customers',cu],['commodities',cm],['chambers',ch],['users',us],['lots',lt],['allocations',al],['temps',tl],['inspections',ins],['invoices',iv]].forEach(([k,a])=>{a.length=0;a.push(...d[k])});
+  st.rep={};st.dev=(await api('reports/dev')).rows}
+
+// ---- helpers -----------------------------------------------------------------------------
+const msgH=()=>st.msg?`<div class="msg ${st.msg.t}">${st.msg.x}</div>`:'';
+const say=(t,x,full)=>{st.msg={t,x};full?draw():(document.getElementById('m').innerHTML=msgH())};
+const go=v=>{st.v=v;st.msg=null;draw()},tab=t=>{st.tab=t;draw()};
+const fr=(a,b)=>`<div class="frame"><section>${a}</section><section>${b}</section></div>`;
+const tb=(h,r)=>`<div class="sc"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${r.map(x=>`<tr>${x.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+const sel=(n,l,a,fn)=>`<label>${l}<select name="${n}">${a.map(x=>`<option value="${x.id}">${fn(x)}</option>`).join('')}</select></label>`;
+const inp=(n,l,t,x='')=>`<label>${l}<input name="${n}" type="${t}" ${x}></label>`;
+const bar=p=>`<div class="bar"><i style="width:${Math.min(p,100)}%"></i></div>`;
+const dv=s=>s=='DEVIATION'?'<span class="bad">DEVIATION</span>':'OK';
+const used=c=>sum(al.filter(a=>a.ch==c&&a.st=='Active').map(a=>a.qty-a.rel));
+const avail=l=>l.bal-sum(al.filter(a=>a.lot==l.id&&a.st=='Active').map(a=>a.qty));
+
+// ---- screens -----------------------------------------------------------------------------
+const V={};
+V.home=()=>{const d=st.dev.filter(x=>x.compliancestatus=='DEVIATION').length,ex=lt.filter(l=>l.bal>0&&l.exp&&l.exp<T).length,due=sum(iv.map(v=>tot(v)-v.paid));
+return fr(`<h1>Chamber occupancy</h1><p class="sub">Active allocations, net of releases</p>${ch.map(c=>`<div>${esc(c.n)} <small>(${c.ty})</small> <span style="float:right">${fmt(used(c.id))} / ${fmt(c.kg)} kg</span></div>${bar(used(c.id)/c.kg*100)}`).join('')}`,
+`<h1>Alerts</h1><p class="sub">Compliance and cash-flow at a glance</p><div class="kp"><div><b class="bad">${d}</b>temperature deviations</div><div><b>${ex}</b>expired lots in stock</div><div><b>${lt.filter(l=>l.bal>0).length}</b>lots in storage</div><div><b>${fmt(due)}</b>outstanding dues</div></div><div class="lg">${LOG.length?LOG.slice(0,6).map(esc).join('<br>'):'Activity log: actions you perform appear here.'}</div>`)};
+V.lots=()=>fr(`<h1>Lot intake</h1><p class="sub">Register a shipment and issue its receipt</p><form onsubmit="return act('lot',this)">${sel('c','Customer',cu,x=>esc(x.n))}${sel('m','Commodity',cm,x=>esc(x.n))}${inp('q','Quantity','number','min="0" step="any" required')}${inp('arr','Arrival date','date',`value="${T}" required`)}${inp('exp','Expiry date','date')}${inp('b','Batch number','text')}<button class="btn">Register lot</button></form>`,
+`<h1>Lots</h1><p class="sub">${lt.length} on record</p>`+tb(['Lot','Customer','Commodity','Initial','Balance','Arrival','Receipt'],lt.slice().reverse().map(l=>[l.id,nm(cu,l.c),nm(cm,l.m),fmt(l.init),fmt(l.bal),l.arr,l.rec])));
+V.alloc=()=>fr(`<h1>Chamber allocation</h1><p class="sub">Capacity is checked by the database before space is assigned</p><form onsubmit="return act('al',this)">${sel('l','Lot',lt.filter(l=>avail(l)>0),l=>`${l.id} · ${fmt(avail(l))} unallocated`)}${sel('c','Chamber',ch,c=>`${esc(c.n)} · ${fmt(c.kg-used(c.id))} kg free`)}${inp('q','Quantity','number','min="0" step="any" required')}<button class="btn">Allocate</button></form>`,
+`<h1>Allocations</h1><p class="sub">Lot to chamber assignments</p>`+tb(['ID','Lot','Chamber','Allocated','Released','Status'],al.slice().reverse().map(a=>[a.id,a.lot,nm(ch,a.ch),fmt(a.qty),fmt(a.rel),a.st])));
+V.env=()=>fr(`<h1>Monitoring</h1><p class="sub">Temperature entry and quality inspection</p><form onsubmit="return act('t',this)">${sel('c','Chamber',ch,c=>esc(c.n))}${inp('t','Temperature (°C)','number','step="any" required')}${inp('ts','Recorded at','datetime-local',`value="${T}T${new Date().toTimeString().slice(0,5)}" required`)}<button class="btn">Log reading</button></form>
+<form onsubmit="return act('i',this)">${sel('l','Lot',lt.filter(l=>l.bal>0),l=>l.id+' · '+nm(cm,l.m))}${inp('s','Condition score (1-5)','number','min="1" max="5" step="1" required')}${inp('r','Remarks','text')}<button class="btn">Record inspection</button></form>`,
+`<h1>Readings</h1><p class="sub">Checked against the stored commodity's range</p>`+tb(['Time','Chamber','°C','Commodity','Status'],st.dev.slice().sort((a,b)=>a.recordedtimestamp<b.recordedtimestamp?1:-1).slice(0,12).map(x=>[x.recordedtimestamp,esc(x.chambername),x.temperaturecelsius,esc(x.commodityaffected),dv(x.compliancestatus)]))+`<h2>Inspections</h2>`+tb(['Lot','Date','Score','Remarks'],ins.slice().reverse().slice(0,6).map(i=>[i.lot,i.idate,i.s,esc(i.rem)])));
+V.bill=()=>fr(`<h1>Billing</h1><p class="sub">Duration-based charge = daily rate × days × quantity</p><form onsubmit="return act('inv',this)">${sel('l','Lot',lt.filter(l=>l.bal>0),l=>l.id+' · '+nm(cm,l.m))}${inp('s','Period start','date',`value="${D(-14)}" required`)}${inp('e','Period end','date',`value="${T}" required`)}<button class="btn">Generate invoice</button></form>
+<form onsubmit="return act('pay',this)">${sel('i','Invoice',iv.filter(v=>tot(v)-v.paid>0.0001),v=>`${v.num} · due ${fmt(tot(v)-v.paid)}`)}${inp('a','Amount paid','number','min="0" step="any" required')}<label>Method<select name="m"><option>Bank Transfer</option><option>UPI</option><option>Cash</option><option>Cheque</option></select></label><button class="btn">Record payment</button></form>`,
+`<h1>Invoices</h1><p class="sub">Payment limits enforced per invoice</p>`+tb(['Invoice','Customer','Total','Paid','Due','Status'],iv.slice().reverse().map(v=>[v.num,nm(cu,v.c),fmt(tot(v)),fmt(v.paid),fmt(tot(v)-v.paid),v.st])));
+V.rel=()=>fr(`<h1>Lot release</h1><p class="sub">Approved exits from a chamber allocation</p><form onsubmit="return act('rel',this)">${sel('a','Allocation',al.filter(a=>a.st=='Active'&&a.qty-a.rel>0),a=>`${a.id} · ${a.lot} · ${fmt(a.qty-a.rel)} left`)}${inp('q','Quantity to release','number','min="0" step="any" required')}${inp('d','Release date','date',`value="${T}" required`)}<button class="btn">Approve release</button></form>`,
+`<h1>Releases</h1><p class="sub">Audit trail</p>`+tb(['Allocation','Lot','Released','Date','Approved by'],al.filter(a=>a.rel>0).map(a=>[a.id,a.lot,fmt(a.rel),a.rdate,nm(us,a.appr)])));
+
+// reports come straight from the Oracle views (/api/reports/<name>)
+const REP={
+occ:['Occupancy',['Chamber','Type','Capacity kg','Occupied kg','Load'],r=>[esc(r.chambername),r.type,fmt(r.totalcapacitykg),fmt(r.occupiedkg),bar(r.occupancypct)+r.occupancypct+'%']],
+age:['Lot ageing',['Lot','Customer','Commodity','Days','Balance','Bucket'],r=>[r.lotid,esc(r.customername),esc(r.commodityname),r.daysinstorage,fmt(r.currentbalanceqty),r.ageingbucket=='Expired'?'<span class="bad">Expired</span>':r.ageingbucket]],
+dev:['Deviation',['Log','Chamber','Time','°C','Commodity','Range','Status'],r=>[r.logid,esc(r.chambername),r.recordedtimestamp,r.temperaturecelsius,esc(r.commodityaffected),r.opttempminc+' to '+r.opttempmaxc,dv(r.compliancestatus)]],
+stock:['Customer stock',['Customer','Commodity','Lots','On hand'],r=>[esc(r.customername),esc(r.commodityname),r.activelots,fmt(r.totalstockonhand)+' '+esc(r.uom)]],
+rel:['Releases',['Allocation','Lot','Customer','Chamber','Qty','Date','Approved by','Days held'],r=>[r.allocationid,r.lotid,esc(r.customername),esc(r.chambername),fmt(r.releasedquantity),r.releasedate,esc(r.approvedbyname),r.daysheldbeforerelease]],
+bill:['Billing',['Invoice','Customer','Total','Paid','Due','Status'],r=>[r.invoicenumber,esc(r.customername),fmt(r.totalamount),fmt(r.amountpaid),fmt(r.amountdue),r.status]],
+rev:['Revenue',['Month','Payments','Collected'],r=>[r.revenuemonth,r.paymentcount,fmt(r.revenuecollected)]]};
+async function loadRep(){const k=st.tab;try{st.rep[k]=(await api('reports/'+k)).rows}catch(e){st.rep[k]=[];say('e','ERROR: '+esc(e.message))}draw()}
+V.rep=()=>{const cust=st.user.role=='Customer',ks=cust?['age','stock','bill']:Object.keys(REP);if(!ks.includes(st.tab))st.tab=ks[0];
+const[t,h,fn]=REP[st.tab],rows=st.rep[st.tab];
+if(!rows&&!st.ld){st.ld=1;loadRep().finally(()=>st.ld=0)}
+return`<div class="frame one"><section><h1>${t}</h1><p class="sub">${cust?'Read-only customer portal':'Live from the Oracle report views'}</p><div class="tabs">${ks.map(k=>`<button class="${k==st.tab?'on':''}" onclick="tab('${k}')">${REP[k][0]}</button>`).join('')}</div>${rows?tb(h,rows.map(fn)):'<p class="sub">Loading…</p>'}</section></div>`};
+
+// ---- actions: every rule is enforced by the database; its message is shown as-is --------------
+function act(k,form){run(k,Object.fromEntries(new FormData(form)),form.querySelector('.btn'));return false}
+async function run(k,d,btn){
+  if(btn)btn.disabled=true;
+  try{const r=await api(K[k],d);await refresh();LOG.unshift(new Date().toTimeString().slice(0,8)+'  '+r.message);say(r.warn?'e':'o',esc(r.message),1)}
+  catch(e){say('e','ERROR: '+esc(e.message));if(btn)btn.disabled=false}}
+
+// ---- login -------------------------------------------------------------------------------------
+const loginH=()=>`<main><div id="m">${msgH()}</div><div class="frame"><section class="ill"><svg viewBox="0 0 220 160" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-linejoin="round" style="width:100%;max-width:320px;border:1px solid var(--ink);padding:10px;margin-bottom:18px"><circle cx="180" cy="32" r="15" fill="var(--acc)"/><path d="M25 72L110 28l85 44v62H25zM90 134V96h40v38M45 90h30M145 90h30M45 104h30M145 104h30"/><path d="M60 40v22M49 46l22 10M71 46L49 56" stroke="var(--acc)" stroke-width="2"/></svg><h1>Cold chain, under control</h1><p class="sub">Allocate chambers, log temperatures and bill storage, with every business rule enforced by the database.</p></section><section><h1>Sign in</h1><p class="sub">Cold Storage Commodity &amp; Chamber Management</p><form onsubmit="return signin(this)"><label>Username or email<input name="u" autocomplete="username" required></label><label>Password<input id="pw" name="p" type="password" autocomplete="current-password" required></label><a class="lnk" href="#" onclick="pw.type=pw.type=='password'?'text':'password';return false">Show / hide password</a><button class="btn">Continue</button></form><div class="lg">Demo accounts<br>admin_user / admin123 (Admin)<br>op_user1 / op123 (Warehouse operator)<br>bill_user1 / bill123 (Billing clerk)<br>greenfields / cust123 (Customer)</div></section></div></main>`;
+function signin(form){const d=Object.fromEntries(new FormData(form));
+  api('login',{username:d.u,password:d.p}).then(async u=>{st.user=u;st.v=R[u.role].split(' ')[0];st.msg=null;st.rep={};if(u.role!='Customer')await refresh();draw()}).catch(e=>say('e','ERROR: '+esc(e.message)));return false}
+function logout(){api('logout',{}).finally(()=>{st.user=null;st.msg=null;st.rep={};draw()})}
+
+function draw(){const app=document.getElementById('app');
+  if(!st.user){app.className='app login';app.innerHTML=loginH();return}
+  app.className='app';const ok=R[st.user.role].split(' ');if(!ok.includes(st.v))st.v=ok[0];
+  app.innerHTML=`<nav class="nav"><svg class="logo" viewBox="0 0 24 24"><path fill="var(--acc)" d="M12 2c1 4 6 6 6 12a6 6 0 01-12 0c0-3 2-4 3-6 1 2 2 2 2 0 0-2 0-4 1-6z"/></svg>${NV.filter(n=>ok.includes(n[0])).map(n=>`<button class="${n[0]==st.v?'on':''}" onclick="go('${n[0]}')"><svg viewBox="0 0 24 24"><path d="${I[n[0]]}"/></svg>${n[1]}</button>`).join('')}<i class="sp"></i><small>${esc(st.user.name)}<br>${esc(st.user.role)}</small><button onclick="logout()"><svg viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg>Logout</button></nav><main><div id="m">${msgH()}</div>${V[st.v]()}</main>`}
+
+// resume an existing session after a page reload, otherwise show the login page
+api('me').then(async u=>{st.user=u;st.v=R[u.role].split(' ')[0];if(u.role!='Customer')await refresh();draw()}).catch(()=>draw());
+draw();
+</script></body></html>
